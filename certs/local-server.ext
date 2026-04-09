@@ -1,0 +1,12 @@
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=@alt_names
+
+[alt_names]
+DNS.1=localhost
+DNS.2=DESKTOP-LPHR27P
+DNS.3=DESKTOP-LPHR27P.local
+IP.1=127.0.0.1
+IP.2=192.168.1.50

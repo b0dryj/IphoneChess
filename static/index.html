@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#d9c7a2" />
+    <meta name="description" content="Локальные шахматы в формате PWA на Python" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Chess PWA" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Local Chess PWA</title>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Python PWA</p>
+          <h1>Шахматы на одном iPhone</h1>
+          <p class="lead">
+            Полностью локальная партия на одном устройстве. Игра хранится в самом браузере
+            и продолжится после повторного открытия приложения.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="installButton" class="secondary" hidden>Установить приложение</button>
+          <button id="resetButton">Новая партия</button>
+        </div>
+      </section>
+
+      <section class="layout">
+        <div class="board-card">
+          <div class="board-topline">
+            <div>
+              <p class="label">Статус</p>
+              <h2 id="statusText">Загрузка партии...</h2>
+            </div>
+            <div class="chip-row">
+              <span class="chip" id="turnChip">Ход</span>
+              <span class="chip" id="checkChip">Без шаха</span>
+            </div>
+          </div>
+
+          <div class="board-wrap">
+            <div class="axis axis-files axis-top" id="filesTop"></div>
+            <div class="playfield">
+              <div class="axis axis-ranks" id="ranksLeft"></div>
+              <div class="board" id="board"></div>
+            </div>
+            <div class="axis axis-files axis-bottom" id="filesBottom"></div>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <section class="panel install-panel" id="iosInstallHint" hidden>
+            <p class="label">iPhone</p>
+            <h3>Установка на экран домой</h3>
+            <p>Откройте сайт в Safari, нажмите «Поделиться», затем «На экран “Домой”».</p>
+            <p>Если iPhone предложит переключатель Open as Web App, включите его и нажмите Add.</p>
+          </section>
+
+          <section class="panel">
+            <p class="label">Захваченные фигуры</p>
+            <div class="captures">
+              <div>
+                <h3>Белые</h3>
+                <p id="capturedWhite" class="piece-list">-</p>
+              </div>
+              <div>
+                <h3>Черные</h3>
+                <p id="capturedBlack" class="piece-list">-</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <p class="label">История</p>
+            <ol id="historyList" class="history"></ol>
+          </section>
+
+          <section class="panel tips">
+            <p class="label">Как играть</p>
+            <p>Нажмите на фигуру своего цвета, затем выберите подсвеченную клетку.</p>
+            <p>Пешка автоматически превращается в ферзя.</p>
+            <p>Текущая партия сохраняется на этом устройстве автоматически.</p>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+  </html>
