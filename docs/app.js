@@ -808,15 +808,65 @@ function registerPwa() {
   updatePlatformUi();
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+async function fetchPushConfig() {
+  const response = await fetch("./api/push/config", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Push backend is unavailable on this deployment.");
+  }
+  return response.json();
+}
+
+async function ensurePushSubscription(registration, vapidPublicKey) {
+  let subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    return subscription;
+  }
+
+  subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+  });
+
+  const subscribeResponse = await fetch("./api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscription: subscription.toJSON() }),
+  });
+
+  if (!subscribeResponse.ok) {
+    throw new Error("The server rejected the push subscription.");
+  }
+
+  return subscription;
+}
+
 async function scheduleTestNotification() {
-  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
-    window.alert("Уведомления не поддерживаются в этом режиме.");
+  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+    window.alert("Push API не поддерживается в этом режиме.");
     return;
   }
 
-  if (!(window.isSecureContext || ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname))) {
-    window.alert("Для уведомлений нужен HTTPS или localhost.");
+  const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  if (!(window.isSecureContext || isLocalHost)) {
+    window.alert("Для push-уведомлений нужен HTTPS или localhost.");
     return;
+  }
+
+  if (isIosDevice() && !isStandaloneMode()) {
+    window.alert("На iPhone web push работает из установленного приложения на экране домой.");
+    return;
+  }
+
+  const config = await fetchPushConfig();
+  if (!config.supported) {
+    throw new Error(config.reason || "Push backend is not configured.");
   }
 
   let permission = Notification.permission;
@@ -830,28 +880,32 @@ async function scheduleTestNotification() {
   }
 
   const registration = await navigator.serviceWorker.ready;
+  const subscription = await ensurePushSubscription(registration, config.vapidPublicKey);
+
+  notifyButton.classList.add("is-pending");
+  notifyButton.textContent = "Push запланирован";
+
+  const pushResponse = await fetch("./api/push/test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subscription: subscription.toJSON(),
+      delaySeconds: 10,
+    }),
+  });
+
+  const payload = await pushResponse.json();
+  if (!pushResponse.ok || !payload.ok) {
+    throw new Error(payload.message || "The server failed to schedule the push notification.");
+  }
 
   if (notificationTimer) {
     window.clearTimeout(notificationTimer);
   }
-
-  notifyButton.classList.add("is-pending");
-  notifyButton.textContent = "Уведомление через 10 сек";
-
-  notificationTimer = window.setTimeout(async () => {
-    try {
-      await registration.showNotification("Шахматы", {
-        body: "Тестовое уведомление из PWA",
-        icon: "./apple-touch-icon.png",
-        badge: "./apple-touch-icon.png",
-        tag: "local-chess-test",
-        data: { url: "./" },
-      });
-    } finally {
-      notifyButton.classList.remove("is-pending");
-      notifyButton.textContent = "Тестовое уведомление";
-      notificationTimer = null;
-    }
+  notificationTimer = window.setTimeout(() => {
+    notifyButton.classList.remove("is-pending");
+    notifyButton.textContent = "Push через 10 сек";
+    notificationTimer = null;
   }, 10000);
 }
 
@@ -861,8 +915,8 @@ resetButton.addEventListener("click", resetGame);
 notifyButton.addEventListener("click", () => {
   scheduleTestNotification().catch(() => {
     notifyButton.classList.remove("is-pending");
-    notifyButton.textContent = "Тестовое уведомление";
-    window.alert("Не удалось запланировать уведомление.");
+    notifyButton.textContent = "Push через 10 сек";
+    window.alert("Не удалось запланировать push-уведомление.");
   });
 });
 render();

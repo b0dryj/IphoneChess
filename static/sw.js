@@ -1,4 +1,4 @@
-const CACHE_NAME = "local-chess-pwa-v3";
+const CACHE_NAME = "local-chess-pwa-v4";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -51,6 +51,35 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
       });
+    }),
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "Шахматы",
+    body: "Новое уведомление",
+    url: "./",
+    tag: "local-chess-web-push",
+    icon: "./apple-touch-icon.png",
+    badge: "./apple-touch-icon.png",
+  };
+
+  if (event.data) {
+    try {
+      payload = { ...payload, ...event.data.json() };
+    } catch {
+      payload.body = event.data.text();
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: payload.icon,
+      badge: payload.badge,
+      tag: payload.tag,
+      data: { url: payload.url || "./" },
     }),
   );
 });

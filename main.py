@@ -14,6 +14,8 @@ from threading import Lock, Thread
 from typing import Iterable
 from urllib.parse import urlparse
 
+from push_notifications import PushNotificationManager, load_vapid_config
+
 
 ROOT = Path(__file__).parent
 STATIC_DIR = ROOT / "static"
@@ -21,6 +23,7 @@ CERTS_DIR = ROOT / "certs"
 ROOT_CA_FILE = CERTS_DIR / "local-root-ca.cer"
 DEFAULT_SSL_CERT_FILE = CERTS_DIR / "local-server.pem"
 DEFAULT_SSL_KEY_FILE = CERTS_DIR / "local-server.key"
+PUSH_SUBSCRIPTIONS_FILE = ROOT / "push_subscriptions.json"
 
 FILES = {
     "/": STATIC_DIR / "index.html",
@@ -508,6 +511,10 @@ class ChessGame:
 
 
 GAME = ChessGame()
+PUSH_MANAGER = PushNotificationManager(
+    storage_path=PUSH_SUBSCRIPTIONS_FILE,
+    vapid_config=load_vapid_config(ROOT),
+)
 
 
 class ChessRequestHandler(SimpleHTTPRequestHandler):
@@ -515,6 +522,9 @@ class ChessRequestHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/api/state":
             self.send_json(GAME.state())
+            return
+        if parsed.path == "/api/push/config":
+            self.send_json(PUSH_MANAGER.config_payload())
             return
         if parsed.path == "/local-root-ca.cer" and ROOT_CA_FILE.exists():
             self.serve_file(ROOT_CA_FILE)
@@ -533,6 +543,37 @@ class ChessRequestHandler(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length) or "{}")
+
+        if parsed.path == "/api/push/subscribe":
+            subscription = payload.get("subscription", payload)
+            ok = PUSH_MANAGER.save_subscription(subscription)
+            self.send_json(
+                {"ok": ok, "message": "Subscribed" if ok else "Invalid subscription payload"},
+                status=200 if ok else 400,
+            )
+            return
+
+        if parsed.path == "/api/push/unsubscribe":
+            endpoint = payload.get("endpoint") or payload.get("subscription", {}).get("endpoint", "")
+            ok = bool(endpoint) and PUSH_MANAGER.remove_subscription(endpoint)
+            self.send_json(
+                {"ok": ok, "message": "Unsubscribed" if ok else "Subscription not found"},
+                status=200 if ok else 404,
+            )
+            return
+
+        if parsed.path == "/api/push/test":
+            subscription = payload.get("subscription", {})
+            delay_seconds = int(payload.get("delaySeconds", 10))
+            ok, reason = PUSH_MANAGER.schedule_test_push(subscription, delay_seconds=delay_seconds)
+            self.send_json(
+                {
+                    "ok": ok,
+                    "message": "Push scheduled" if ok else reason,
+                },
+                status=200 if ok else 400,
+            )
+            return
 
         if parsed.path == "/api/select":
             result = GAME.select(payload.get("square", ""))
@@ -612,6 +653,12 @@ def run() -> None:
 
     if ROOT_CA_FILE.exists():
         print(f"Root certificate download: http://{lan_ip}:{http_port}/local-root-ca.cer")
+
+    push_config = PUSH_MANAGER.config_payload()
+    if push_config["supported"]:
+        print("Web Push backend is configured.")
+    else:
+        print(f"Web Push backend is disabled: {push_config['reason']}")
 
     if cert_file.exists() and key_file.exists():
         https_server = ThreadingHTTPServer((host, https_port), ChessRequestHandler)
