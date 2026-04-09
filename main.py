@@ -523,6 +523,10 @@ class ChessRequestHandler(SimpleHTTPRequestHandler):
         if file_path and file_path.exists():
             self.serve_file(file_path)
             return
+        dynamic_static_file = self.resolve_static_path(parsed.path)
+        if dynamic_static_file:
+            self.serve_file(dynamic_static_file)
+            return
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
     def do_POST(self) -> None:  # noqa: N802
@@ -577,6 +581,19 @@ class ChessRequestHandler(SimpleHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         return
+
+    def resolve_static_path(self, request_path: str) -> Path | None:
+        relative_path = request_path.lstrip("/")
+        if not relative_path:
+            return None
+        candidate = (STATIC_DIR / relative_path).resolve()
+        try:
+            candidate.relative_to(STATIC_DIR.resolve())
+        except ValueError:
+            return None
+        if candidate.exists() and candidate.is_file():
+            return candidate
+        return None
 
 
 def run() -> None:

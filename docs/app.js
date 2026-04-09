@@ -1,14 +1,16 @@
-const PIECE_THEMES = {
-  w: {
-    fill: "#fbf4e6",
-    stroke: "#9c6a3b",
-    shadow: "#d8b387",
-  },
-  b: {
-    fill: "#26231f",
-    stroke: "#575046",
-    shadow: "#100f0d",
-  },
+const PIECE_ASSETS = {
+  wp: "./pieces/wp.svg",
+  wr: "./pieces/wr.svg",
+  wn: "./pieces/wn.svg",
+  wb: "./pieces/wb.svg",
+  wq: "./pieces/wq.svg",
+  wk: "./pieces/wk.svg",
+  bp: "./pieces/bp.svg",
+  br: "./pieces/br.svg",
+  bn: "./pieces/bn.svg",
+  bb: "./pieces/bb.svg",
+  bq: "./pieces/bq.svg",
+  bk: "./pieces/bk.svg",
 };
 
 const SPECIAL_LABELS = {
@@ -28,99 +30,15 @@ const capturedWhite = document.querySelector("#capturedWhite");
 const capturedBlack = document.querySelector("#capturedBlack");
 const resetButton = document.querySelector("#resetButton");
 const installButton = document.querySelector("#installButton");
-const iosInstallHint = document.querySelector("#iosInstallHint");
 
 let deferredPrompt = null;
 
 function pieceMarkup(code, compact = false) {
-  if (!code) {
+  if (!code || !PIECE_ASSETS[code]) {
     return "";
   }
-
-  const side = code[0];
-  const kind = code[1];
-  const palette = PIECE_THEMES[side];
-  const fillStyle = `fill="${palette.fill}" stroke="${palette.stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"`;
-  const lineStyle = `fill="none" stroke="${palette.stroke}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"`;
-  const shadow = `<ellipse cx="32" cy="55" rx="15" ry="4" fill="${palette.shadow}" opacity="${side === "w" ? "0.18" : "0.26"}"></ellipse>`;
-  const className = compact ? "piece-svg piece-svg-compact" : "piece-svg";
-
-  if (kind === "p") {
-    return `
-      <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-        ${shadow}
-        <circle ${fillStyle} cx="32" cy="18" r="8"></circle>
-        <path ${fillStyle} d="M26 29c0-4 3-7 6-7s6 3 6 7c0 2-1 4-2 6h4c4 0 7 3 7 7v2H17v-2c0-4 3-7 7-7h4c-1-2-2-4-2-6Z"></path>
-        <path ${lineStyle} d="M22 52h20"></path>
-        <path ${lineStyle} d="M18 58h28"></path>
-      </svg>
-    `;
-  }
-
-  if (kind === "r") {
-    return `
-      <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-        ${shadow}
-        <path ${fillStyle} d="M19 16h6v7h4v-7h6v7h4v-7h6v11H19Z"></path>
-        <path ${fillStyle} d="M23 29h18l-2 18H25Z"></path>
-        <path ${lineStyle} d="M20 50h24"></path>
-        <path ${lineStyle} d="M16 56h32"></path>
-      </svg>
-    `;
-  }
-
-  if (kind === "n") {
-    return `
-      <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-        ${shadow}
-        <path ${fillStyle} d="M43 18c-7 0-12 4-16 10l6 5-8 7v8h17l5-11c2-5 1-9-2-12l5-4c-1-2-4-3-7-3Z"></path>
-        <circle cx="37" cy="25" r="2.1" fill="${palette.stroke}"></circle>
-        <path ${lineStyle} d="M31 34c4 0 7 2 10 6"></path>
-        <path ${lineStyle} d="M22 50h22"></path>
-        <path ${lineStyle} d="M18 56h30"></path>
-      </svg>
-    `;
-  }
-
-  if (kind === "b") {
-    return `
-      <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-        ${shadow}
-        <path ${fillStyle} d="M32 13c4 0 6 3 6 6 0 3-2 5-4 7 4 3 6 7 6 12 0 3-1 5-3 8l6 6H21l6-6c-2-3-3-5-3-8 0-5 2-9 6-12-2-2-4-4-4-7 0-3 2-6 6-6Z"></path>
-        <path ${lineStyle} d="M30 22 36 28"></path>
-        <path ${lineStyle} d="M22 52h20"></path>
-        <path ${lineStyle} d="M18 58h28"></path>
-      </svg>
-    `;
-  }
-
-  if (kind === "q") {
-    return `
-      <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-        ${shadow}
-        <circle ${fillStyle} cx="18" cy="18" r="3"></circle>
-        <circle ${fillStyle} cx="28" cy="14" r="3"></circle>
-        <circle ${fillStyle} cx="36" cy="14" r="3"></circle>
-        <circle ${fillStyle} cx="46" cy="18" r="3"></circle>
-        <path ${fillStyle} d="M17 22 23 38h18l6-16-8 7-7-11-7 11Z"></path>
-        <path ${fillStyle} d="M23 38h18l3 10H20Z"></path>
-        <path ${lineStyle} d="M20 52h24"></path>
-        <path ${lineStyle} d="M16 58h32"></path>
-      </svg>
-    `;
-  }
-
-  return `
-    <svg class="${className}" viewBox="0 0 64 64" aria-hidden="true">
-      ${shadow}
-      <path ${lineStyle} d="M32 9v9"></path>
-      <path ${lineStyle} d="M27.5 13.5h9"></path>
-      <path ${fillStyle} d="M24 21h16l-2 9 5 11H21l5-11Z"></path>
-      <path ${fillStyle} d="M24 41h16l4 9H20Z"></path>
-      <path ${lineStyle} d="M20 54h24"></path>
-      <path ${lineStyle} d="M16 59h32"></path>
-    </svg>
-  `;
+  const className = compact ? "piece-image piece-image-compact" : "piece-image";
+  return `<img class="${className}" src="${PIECE_ASSETS[code]}" alt="" draggable="false" decoding="async">`;
 }
 
 function squareToCoords(square) {
@@ -737,10 +655,6 @@ function updatePlatformUi() {
 
   document.body.classList.toggle("ios-mobile", ios);
   document.body.classList.toggle("standalone", standalone);
-
-  if (iosInstallHint) {
-    iosInstallHint.hidden = !(ios && !standalone);
-  }
 }
 
 function makeAxis() {

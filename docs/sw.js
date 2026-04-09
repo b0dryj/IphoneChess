@@ -1,4 +1,4 @@
-const CACHE_NAME = "local-chess-pwa-v1";
+const CACHE_NAME = "local-chess-pwa-v2";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,18 @@ const APP_ASSETS = [
   "./app.js",
   "./manifest.webmanifest",
   "./apple-touch-icon.png",
+  "./pieces/wp.svg",
+  "./pieces/wr.svg",
+  "./pieces/wn.svg",
+  "./pieces/wb.svg",
+  "./pieces/wq.svg",
+  "./pieces/wk.svg",
+  "./pieces/bp.svg",
+  "./pieces/br.svg",
+  "./pieces/bn.svg",
+  "./pieces/bb.svg",
+  "./pieces/bq.svg",
+  "./pieces/bk.svg",
   "./icons/icon.svg",
   "./icons/icon-maskable.svg",
 ];
