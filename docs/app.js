@@ -30,8 +30,10 @@ const capturedWhite = document.querySelector("#capturedWhite");
 const capturedBlack = document.querySelector("#capturedBlack");
 const resetButton = document.querySelector("#resetButton");
 const installButton = document.querySelector("#installButton");
+const notifyButton = document.querySelector("#notifyButton");
 
 let deferredPrompt = null;
+let notificationTimer = null;
 
 function pieceMarkup(code, compact = false) {
   if (!code || !PIECE_ASSETS[code]) {
@@ -806,7 +808,61 @@ function registerPwa() {
   updatePlatformUi();
 }
 
+async function scheduleTestNotification() {
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    window.alert("Уведомления не поддерживаются в этом режиме.");
+    return;
+  }
+
+  if (!(window.isSecureContext || ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname))) {
+    window.alert("Для уведомлений нужен HTTPS или localhost.");
+    return;
+  }
+
+  let permission = Notification.permission;
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
+
+  if (permission !== "granted") {
+    window.alert("Разрешение на уведомления не выдано.");
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+
+  if (notificationTimer) {
+    window.clearTimeout(notificationTimer);
+  }
+
+  notifyButton.classList.add("is-pending");
+  notifyButton.textContent = "Уведомление через 10 сек";
+
+  notificationTimer = window.setTimeout(async () => {
+    try {
+      await registration.showNotification("Шахматы", {
+        body: "Тестовое уведомление из PWA",
+        icon: "./apple-touch-icon.png",
+        badge: "./apple-touch-icon.png",
+        tag: "local-chess-test",
+        data: { url: "./" },
+      });
+    } finally {
+      notifyButton.classList.remove("is-pending");
+      notifyButton.textContent = "Тестовое уведомление";
+      notificationTimer = null;
+    }
+  }, 10000);
+}
+
 makeAxis();
 registerPwa();
 resetButton.addEventListener("click", resetGame);
+notifyButton.addEventListener("click", () => {
+  scheduleTestNotification().catch(() => {
+    notifyButton.classList.remove("is-pending");
+    notifyButton.textContent = "Тестовое уведомление";
+    window.alert("Не удалось запланировать уведомление.");
+  });
+});
 render();

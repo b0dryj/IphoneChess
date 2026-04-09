@@ -58,6 +58,10 @@ button:hover {
   box-shadow: var(--shadow-soft);
 }
 
+.hero-actions button.is-pending {
+  opacity: 0.72;
+}
+
 .hero-actions button.secondary {
   background: rgba(45, 31, 22, 0.12);
   color: var(--text);
