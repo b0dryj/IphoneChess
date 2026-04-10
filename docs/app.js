@@ -39,6 +39,14 @@ function isLocalHost() {
   return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 }
 
+function colorLabel(color) {
+  return color === "w" ? "Белые" : "Черные";
+}
+
+function colorDativeLabel(color) {
+  return color === "w" ? "белым" : "черным";
+}
+
 function pieceMarkup(code, compact = false) {
   if (!code || !PIECE_ASSETS[code]) {
     return "";
@@ -756,9 +764,15 @@ function onSquareClick(event) {
   const legalMoves = game.selected ? game.legalMovesForSquare(game.selected) : [];
 
   if (game.selected && legalMoves.includes(square)) {
-    game.move(game.selected, square);
+    const hadWinner = Boolean(game.winner);
+    const moved = game.move(game.selected, square);
     saveGame(game);
     render();
+    if (moved && !hadWinner && (game.winner === "w" || game.winner === "b")) {
+      showCheckmateNotification(game.winner).catch((error) => {
+        console.error("Checkmate notification failed", error);
+      });
+    }
     return;
   }
 
@@ -857,12 +871,12 @@ async function scheduleTestNotification() {
   }
 
   if (!(window.isSecureContext || isLocalHost())) {
-    window.alert("Для push-уведомлений нужен HTTPS или localhost.");
+    window.alert("Для уведомлений нужен HTTPS или localhost.");
     return;
   }
 
   if (isLocalHost()) {
-    await scheduleLocalTestNotification();
+    await showLocalTestNotification();
     return;
   }
 
@@ -921,51 +935,80 @@ async function scheduleTestNotification() {
   }, 10000);
 }
 
-async function scheduleLocalTestNotification() {
+async function showSystemNotification(title, options = {}) {
+  if (!("Notification" in window)) {
+    throw new Error("Браузер не поддерживает системные уведомления.");
+  }
+
+  if (!(window.isSecureContext || isLocalHost())) {
+    throw new Error("Для уведомлений нужен HTTPS или localhost.");
+  }
+
   let permission = Notification.permission;
   if (permission === "default") {
     permission = await Notification.requestPermission();
   }
 
   if (permission !== "granted") {
-    window.alert("Разрешение на уведомления не выдано.");
-    return;
+    throw new Error("Разрешение на уведомления не выдано.");
   }
 
-  const registration = await navigator.serviceWorker.ready;
+  try {
+    new Notification(title, options);
+  } catch {
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("Service Worker недоступен для fallback-уведомления.");
+    }
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification(title, options);
+  }
+}
 
+async function showLocalTestNotification() {
   if (notificationTimer) {
     window.clearTimeout(notificationTimer);
+    notificationTimer = null;
   }
 
   notifyButton.classList.add("is-pending");
-  notifyButton.textContent = "Уведомление через 10 сек";
+  notifyButton.textContent = "Показываю...";
 
-  notificationTimer = window.setTimeout(async () => {
-    try {
-      await registration.showNotification("Шахматы", {
-        body: "Тестовое уведомление с локального сайта",
-        icon: "./apple-touch-icon.png",
-        badge: "./apple-touch-icon.png",
-        tag: "local-chess-desktop-test",
-        data: { url: "./" },
-      });
-    } finally {
-      notifyButton.classList.remove("is-pending");
-      notifyButton.textContent = "Тестовое уведомление";
-      notificationTimer = null;
-    }
-  }, 10000);
+  const options = {
+    body: "Тестовое уведомление с локального сайта",
+    icon: "./apple-touch-icon.png",
+    badge: "./apple-touch-icon.png",
+    tag: "local-chess-desktop-test",
+    data: { url: "./" },
+  };
+
+  try {
+    await showSystemNotification("Шахматы", options);
+  } finally {
+    notifyButton.classList.remove("is-pending");
+    notifyButton.textContent = "Тестовое уведомление";
+  }
+}
+
+async function showCheckmateNotification(winner) {
+  const loser = winner === "w" ? "b" : "w";
+  await showSystemNotification("Мат в шахматах", {
+    body: `${colorLabel(winner)} поставили мат ${colorDativeLabel(loser)}.`,
+    icon: "./apple-touch-icon.png",
+    badge: "./apple-touch-icon.png",
+    tag: "local-chess-checkmate",
+    data: { url: "./" },
+  });
 }
 
 makeAxis();
 registerPwa();
 resetButton.addEventListener("click", resetGame);
 notifyButton.addEventListener("click", () => {
-  scheduleTestNotification().catch(() => {
+  scheduleTestNotification().catch((error) => {
+    console.error("Notification failed", error);
     notifyButton.classList.remove("is-pending");
     notifyButton.textContent = "Тестовое уведомление";
-    window.alert("Не удалось запланировать уведомление.");
+    window.alert(`Не удалось показать уведомление: ${error.message || "неизвестная ошибка"}`);
   });
 });
 render();

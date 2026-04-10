@@ -1,4 +1,4 @@
-const CACHE_NAME = "local-chess-pwa-v5";
+const CACHE_NAME = "local-chess-pwa-v7";
 const APP_ASSETS = [
   "./",
   "./index.html",
