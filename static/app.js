@@ -35,6 +35,10 @@ const notifyButton = document.querySelector("#notifyButton");
 let deferredPrompt = null;
 let notificationTimer = null;
 
+function isLocalHost() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
 function pieceMarkup(code, compact = false) {
   if (!code || !PIECE_ASSETS[code]) {
     return "";
@@ -779,8 +783,7 @@ function resetGame() {
 }
 
 function registerPwa() {
-  const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-  if ("serviceWorker" in navigator && (window.isSecureContext || isLocalHost)) {
+  if ("serviceWorker" in navigator && (window.isSecureContext || isLocalHost())) {
     navigator.serviceWorker.register("./sw.js");
   }
 
@@ -848,14 +851,23 @@ async function ensurePushSubscription(registration, vapidPublicKey) {
 }
 
 async function scheduleTestNotification() {
-  if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-    window.alert("Push API не поддерживается в этом режиме.");
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    window.alert("Уведомления не поддерживаются в этом браузере.");
     return;
   }
 
-  const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-  if (!(window.isSecureContext || isLocalHost)) {
+  if (!(window.isSecureContext || isLocalHost())) {
     window.alert("Для push-уведомлений нужен HTTPS или localhost.");
+    return;
+  }
+
+  if (isLocalHost()) {
+    await scheduleLocalTestNotification();
+    return;
+  }
+
+  if (!("PushManager" in window)) {
+    window.alert("Push API не поддерживается в этом браузере.");
     return;
   }
 
@@ -904,8 +916,45 @@ async function scheduleTestNotification() {
   }
   notificationTimer = window.setTimeout(() => {
     notifyButton.classList.remove("is-pending");
-    notifyButton.textContent = "Push через 10 сек";
+    notifyButton.textContent = "Тестовое уведомление";
     notificationTimer = null;
+  }, 10000);
+}
+
+async function scheduleLocalTestNotification() {
+  let permission = Notification.permission;
+  if (permission === "default") {
+    permission = await Notification.requestPermission();
+  }
+
+  if (permission !== "granted") {
+    window.alert("Разрешение на уведомления не выдано.");
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+
+  if (notificationTimer) {
+    window.clearTimeout(notificationTimer);
+  }
+
+  notifyButton.classList.add("is-pending");
+  notifyButton.textContent = "Уведомление через 10 сек";
+
+  notificationTimer = window.setTimeout(async () => {
+    try {
+      await registration.showNotification("Шахматы", {
+        body: "Тестовое уведомление с локального сайта",
+        icon: "./apple-touch-icon.png",
+        badge: "./apple-touch-icon.png",
+        tag: "local-chess-desktop-test",
+        data: { url: "./" },
+      });
+    } finally {
+      notifyButton.classList.remove("is-pending");
+      notifyButton.textContent = "Тестовое уведомление";
+      notificationTimer = null;
+    }
   }, 10000);
 }
 
@@ -915,8 +964,8 @@ resetButton.addEventListener("click", resetGame);
 notifyButton.addEventListener("click", () => {
   scheduleTestNotification().catch(() => {
     notifyButton.classList.remove("is-pending");
-    notifyButton.textContent = "Push через 10 сек";
-    window.alert("Не удалось запланировать push-уведомление.");
+    notifyButton.textContent = "Тестовое уведомление";
+    window.alert("Не удалось запланировать уведомление.");
   });
 });
 render();
